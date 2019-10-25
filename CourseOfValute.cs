@@ -59,11 +59,16 @@ namespace Currencies
             valute = v;
             valueOfCourse = c;
         }
-
-        public void PrintValute()
+        public string DateToSqlFormat()
         {
-            Console.WriteLine("Date: " + date + " Valute: " + valute + " Course: " + valueOfCourse);
+            //24.10.2019 => 2019-10-24
+            DateTime dt = DateTime.Parse(this.date);
+            return dt.ToString("yyyy-MM-dd"); ;
         }
+        //public void PrintValute()
+        //{
+        //    Console.WriteLine("Date: " + date + " Valute: " + valute + " Course: " + valueOfCourse);
+        //}
 
     }
 }

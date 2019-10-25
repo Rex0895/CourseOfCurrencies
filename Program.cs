@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Text;
-using System.Xml;
 using System.Xml.Linq;
+using System.Data.SQLite;
+using System.Data;
 
 namespace Currencies
 {
@@ -12,6 +12,7 @@ namespace Currencies
     {
         static void Main(string[] args)
         {
+            //-------------------------------Работа с XML файлом----------------------------------------------
             //загружаем xml файл
             StreamReader reader = new StreamReader(WebRequest.Create("http://www.cbr.ru/scripts/XML_daily.asp").
                 GetResponse().GetResponseStream());
@@ -20,7 +21,7 @@ namespace Currencies
             //Считываем атрибут Date из узла ValCurs
             XAttribute dateAttr = xdoc.Element("ValCurs").Attribute("Date");
             String date = dateAttr.Value;
-
+            List<CourseOfValute> courses = new List<CourseOfValute>();
             //Пробегаемся по узлам Valute, заполняем объекты класса ValCurs
             foreach (XElement valElem in xdoc.Element("ValCurs").Elements("Valute"))
             {
@@ -34,48 +35,112 @@ namespace Currencies
                     cov.Valute = charCode.Value;
                     cov.ValueOfCourse = Convert.ToDouble(value.Value);
                 }
-                cov.PrintValute();
+                courses.Add(cov);
+                //cov.PrintValute();
+
             }
 
+            //--------------------------------------Работа с БД-------------------------------------
+            //Создание БД SQLite
+            SQLiteWorking SQLiteDB = new SQLiteWorking(@"\TestDB.db", @"Data Source=\TestDB.db; Version=3;");
 
+            //Создание таблицы с курсом валют
+            SQLiteDB.MakeSQLCommand("CREATE TABLE IF NOT EXISTS [CoursesOfValute] ([Date] date, [Valute] VARCHAR(5), [Course] float)");
+            
+            //Заполнение таблицы
+            //string commandText = "INSERT INTO CoursesOfValute (Date,Valute,Course) VALUES('2019-24-10','USD', 65.07); "; //пример запроса
+            // string commandText1 = "INSERT INTO CoursesOfValute (ID,Date,Valute,Course) VALUES";
+            string commandText1 = "INSERT INTO CoursesOfValute (Date,Valute,Course) VALUES";
+            for (int i = 0; i < courses.Count; i++)
+            {
+                if (i != courses.Count - 1)
+                    commandText1 += String.Format("('{0}','{1}',{2})," + "\n", courses[i].DateToSqlFormat(), courses[i].Valute,
+                        courses[i].ValueOfCourse.ToString(System.Globalization.CultureInfo.GetCultureInfo("en-US")));
+                else //в конце ;
+                    commandText1 += String.Format("('{0}','{1}',{2});" + "\n", courses[i].DateToSqlFormat(), courses[i].Valute,
+                    courses[i].ValueOfCourse.ToString(System.Globalization.CultureInfo.GetCultureInfo("en-US")));
+                // lastId++;
+            }
+            SQLiteDB.MakeSQLCommand(commandText1);
+            //Удаление повторов
 
-            //// Console.WriteLine("Hello World!");
-            //Encoding win1251 = Encoding.GetEncoding(1251);
-            //XmlDocument xDoc = new XmlDocument();
-            //xDoc.Load("http://www.cbr.ru/scripts/XML_daily.asp",win1251);
-            //// получим корневой элемент
-            //XmlElement xRoot = xDoc.DocumentElement;
-            ////Контейнер для хранения данных о курсах валют на текущую дату
-            //List<ValCurs> todaysCources = new List<ValCurs>();
-            //// обход всех узлов в корневом элементе
-            //foreach (XmlNode xnode in xRoot)
-            //{
-            //    //ValCurs valCurs = new ValCurs();
-            //    // получаем атрибут Date
-            //    if (xnode.Attributes.Count > 0)
-            //    {
-            //        XmlNode dateAttr = xnode.Attributes.GetNamedItem("Date");
-            //        if (dateAttr != null)
-            //            //valCurs.Date = dateAttr.Value;
-            //           Console.WriteLine(dateAttr.Value);
-            //    }
-            //    //    // обходим все дочерние узлы элемента Valute
-            //    //    foreach (XmlNode childnode in xnode.ChildNodes)
-            //    //    {
-            //    //        // если узел - CharCode: EUR, USD
-            //    //        if (childnode.Name == "CharCode")
-            //    //        {
-            //    //            valCurs.Valute = childnode.InnerText;
-            //    //            //Console.WriteLine($"Валюта: {childnode.InnerText}");
-            //    //        }
-            //    //        // если узел Value
-            //    //        if (childnode.Name == "Value")
-            //    //        {
-            //    //            valCurs.ValueOfCourse = Convert.ToDouble(childnode.InnerText);
-            //    //        }
-            //    //    }
-            //    //    todaysCources.Add(valCurs);
-            //}
+            //Вывести данные из таблицы в консоль
+            SQLiteDB.ShowDataFromTable("CoursesOfValute");
         }
     }
 }
+//if (!File.Exists(@"\TestDB.db"))
+//{
+//    SQLiteConnection.CreateFile(@"\TestDB.db"); // создать базу данны
+//}
+////Работа с БД
+//using (SQLiteConnection Connect = new SQLiteConnection(@"Data Source=\TestDB.db; Version=3;")) // подключение
+//{
+//    //запрос к бд [ID] INTEGER PRIMARY KEY NOT NULL, 
+//    string commandText = "CREATE TABLE IF NOT EXISTS [CoursesOfValute] ([Date] date, [Valute] VARCHAR(5), [Course] float)"; // создать таблицу, если её нет
+//    SQLiteCommand Command = new SQLiteCommand(commandText, Connect);
+//    Connect.Open(); // открыть соединение
+//    Command.ExecuteNonQuery(); // выполнить запрос
+//    Connect.Close(); // закрыть соединение
+
+//    ////получение последнего ID
+//    //commandText = "Select MAX(ID) from CoursesOfValute;";
+//    //Command = new SQLiteCommand(commandText, Connect);
+//    //Connect.Open(); // открыть соединение
+//    ////Command.ExecuteNonQuery(); // выполнить запрос
+//    //int lastId = (Int32)Command.ExecuteScalar()-1;
+//    //Connect.Close(); // закрыть соединение
+
+////Заполнение таблицы полученными данными
+////string commandText = "INSERT INTO CoursesOfValute (Date,Valute,Course) VALUES('2019-24-10','USD', 65.07); "; //пример запроса
+//// string commandText1 = "INSERT INTO CoursesOfValute (ID,Date,Valute,Course) VALUES";
+//string commandText1 = "INSERT INTO CoursesOfValute (Date,Valute,Course) VALUES";
+//for (int i = 0; i < courses.Count; i++)
+//{
+//    if (i != courses.Count - 1)
+//        commandText1 += String.Format("('{0}','{1}',{2})," + "\n", courses[i].DateToSqlFormat(), courses[i].Valute,
+//            courses[i].ValueOfCourse.ToString(System.Globalization.CultureInfo.GetCultureInfo("en-US")));
+//    else //в конце ;
+//        commandText1 += String.Format("('{0}','{1}',{2});" + "\n", courses[i].DateToSqlFormat(), courses[i].Valute,
+//        courses[i].ValueOfCourse.ToString(System.Globalization.CultureInfo.GetCultureInfo("en-US")));
+//    // lastId++;
+//}
+
+//    //commandText += "DELETE FROM Courses WHERE rowid not in (SELECT MIN(rowid) FROM Courses GROUP BY Date, Valute, Course);";
+
+//    SQLiteCommand Command1 = new SQLiteCommand(commandText1, Connect);
+//    Connect.Open(); // открыть соединение
+//    Command1.ExecuteNonQuery(); // выполнить запрос
+//    Connect.Close(); // закрыть соединение
+
+//    //Посмотреть данные в таблице
+//    commandText = "Select * from CoursesOfValute";
+//    Connect.Open(); // открыть соединение
+//    Command = new SQLiteCommand(commandText, Connect);
+//    SQLiteDataReader reader1 = Command.ExecuteReader();
+//    DataTable dt = new DataTable();
+//    dt.Load(reader1);
+//    reader1.Close();
+//    Connect.Close(); // закрыть соединение
+//    foreach (DataRow dataRow in dt.Rows)
+//    {
+//        foreach (var item in dataRow.ItemArray)
+//        {
+//            Console.WriteLine(item);
+//        }
+//    }
+
+//}
+
+
+
+
+//using (SQLiteConnection Connect = new SQLiteConnection(@"Data Source=\TestDB.db; Version=3;")) // подключение
+//            {
+//                //запрос к бд
+//                Connect.Open();
+//                string commandText = "Drop table CoursesOfValute";
+//SQLiteCommand Command = new SQLiteCommand(commandText, Connect);
+//Command.ExecuteNonQuery();
+//                Connect.Close();
+//            }
