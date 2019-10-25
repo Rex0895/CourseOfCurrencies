@@ -14,10 +14,13 @@ namespace Currencies
         {
             //-------------------------------Работа с XML файлом----------------------------------------------
             //загружаем xml файл
-            StreamReader reader = new StreamReader(WebRequest.Create("http://www.cbr.ru/scripts/XML_daily.asp").
+            //Пример http://www.cbr.ru/scripts/XML_daily.asp?date_req=21.08.2019
+            //На завтрашнюю дату http://www.cbr.ru/scripts/XML_daily.asp
+            //На сегодняшнюю дату
+            string today = DateTime.Today.ToString("d").Replace("/", ".");
+            StreamReader reader = new StreamReader(WebRequest.Create(String.Format("http://www.cbr.ru/scripts/XML_daily.asp?date_req={0}",today)).
                 GetResponse().GetResponseStream());
             XDocument xdoc = XDocument.Load(reader);
-
             //Считываем атрибут Date из узла ValCurs
             XAttribute dateAttr = xdoc.Element("ValCurs").Attribute("Date");
             String date = dateAttr.Value;
@@ -37,8 +40,9 @@ namespace Currencies
                 }
                 courses.Add(cov);
                 //cov.PrintValute();
-
             }
+            
+            
 
             //--------------------------------------Работа с БД-------------------------------------
             //Создание БД SQLite
@@ -62,7 +66,11 @@ namespace Currencies
                 // lastId++;
             }
             SQLiteDB.MakeSQLCommand(commandText1);
+
             //Удаление повторов
+            SQLiteDB.MakeSQLCommand("delete from CoursesOfValute where rowid not in (select min(rowid) from CoursesOfValute group by Date,Valute,Course);");
+            //Очистка таблицы
+            //SQLiteDB.MakeSQLCommand("DELETE FROM CoursesOfValute;");
 
             //Вывести данные из таблицы в консоль
             SQLiteDB.ShowDataFromTable("CoursesOfValute");
